@@ -30,7 +30,7 @@ erDiagram
       string name
       string email UNIQUE
       string passwordHash
-      string role "admin|user"
+      string role
       datetime createdAt
       datetime updatedAt
     }
@@ -51,7 +51,7 @@ erDiagram
     ORDER {
       int id PK
       int userId FK
-      string status "pending|paid|shipped|cancelled"
+      string status
       decimal totalAmount
       string shippingAddress
       datetime createdAt
@@ -87,7 +87,7 @@ erDiagram
       int id PK
       int userId FK
       int productId FK
-      int rating "1-5"
+      int rating
       string comment
       datetime createdAt
       datetime updatedAt
