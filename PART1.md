@@ -17,80 +17,80 @@ Minimum three tables are required. This design uses seven tables to support real
 ```mermaid
 erDiagram
     USER ||--o{ ORDER : places
-  USER ||--|| CART : owns
-  CART ||--o{ CART_ITEM : contains
+    USER ||--|| CART : owns
     USER ||--o{ REVIEW : writes
-    ORDER ||--|{ ORDER_ITEM : contains
-  PRODUCT ||--o{ CART_ITEM : included_in
-    PRODUCT ||--o{ ORDER_ITEM : included_in
+    CART ||--o{ CART_ITEM : contains
+    PRODUCT ||--o{ CART_ITEM : in
+    PRODUCT ||--o{ ORDER_ITEM : in
     PRODUCT ||--o{ REVIEW : receives
+    ORDER ||--o{ ORDER_ITEM : contains
 
     USER {
-      int id PK
-      string name
-      string email UNIQUE
-      string passwordHash
-      string role
-      datetime createdAt
-      datetime updatedAt
+        int id PK
+        string name
+        string email UK
+        string passwordHash
+        string role
+        datetime createdAt
+        datetime updatedAt
     }
 
     PRODUCT {
-      int id PK
-      string title
-      string description
-      decimal price
-      int stock
-      string category
-      string imageUrl
-      boolean isActive
-      datetime createdAt
-      datetime updatedAt
+        int id PK
+        string title
+        string description
+        decimal price
+        int stock
+        string category
+        string imageUrl
+        boolean isActive
+        datetime createdAt
+        datetime updatedAt
     }
 
     ORDER {
-      int id PK
-      int userId FK
-      string status
-      decimal totalAmount
-      string shippingAddress
-      datetime createdAt
-      datetime updatedAt
-    }
-
-    CART {
-      int id PK
-      int userId FK UNIQUE
-      datetime createdAt
-      datetime updatedAt
-    }
-
-    CART_ITEM {
-      int id PK
-      int cartId FK
-      int productId FK
-      int quantity
-      datetime createdAt
-      datetime updatedAt
+        int id PK
+        int userId FK
+        string status
+        decimal totalAmount
+        string shippingAddress
+        datetime createdAt
+        datetime updatedAt
     }
 
     ORDER_ITEM {
-      int id PK
-      int orderId FK
-      int productId FK
-      int quantity
-      decimal unitPrice
-      datetime createdAt
+        int id PK
+        int orderId FK
+        int productId FK
+        int quantity
+        decimal unitPrice
+        datetime createdAt
+    }
+
+    CART {
+        int id PK
+        int userId FK "unique"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    CART_ITEM {
+        int id PK
+        int cartId FK
+        int productId FK
+        int quantity
+        datetime createdAt
+        datetime updatedAt
     }
 
     REVIEW {
-      int id PK
-      int userId FK
-      int productId FK
-      int rating
-      string comment
-      datetime createdAt
-      datetime updatedAt
+        int id PK
+        int userId FK
+        int productId FK
+        int rating
+        string comment
+        datetime createdAt
+        datetime updatedAt
     }
 ```
 
