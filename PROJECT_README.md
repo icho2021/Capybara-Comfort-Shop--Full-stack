@@ -46,6 +46,10 @@ Default admin account:
 - Email: `admin@capybara.shop`
 - Password: `Admin1234`
 
+Role note:
+- Admin users can create products from `/products/new`.
+- Regular users can register/login and browse products, but cannot create products (API returns `403` for non-admin role).
+
 ### 4) Start development servers
 
 Terminal A:

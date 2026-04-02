@@ -76,6 +76,9 @@ export function HomePage() {
         <Link className="btn" to="/login">
           Login
         </Link>
+        <Link className="btn secondary" to="/register">
+          Register
+        </Link>
       </div>
     </section>
   );
@@ -468,7 +471,7 @@ function AppRoutes() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/auth" element={<Navigate to="/login" replace />} />
-          <Route path="/register" element={<Navigate to="/login" replace />} />
+          <Route path="/register" element={<AuthPage setUser={setUser} initialTab="register" />} />
           <Route path="/login" element={<AuthPage setUser={setUser} initialTab="login" />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/products" element={<ProductsPage />} />

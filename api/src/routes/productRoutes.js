@@ -1,7 +1,7 @@
 const express = require("express");
 
 const { prisma } = require("../lib/prisma");
-const { requireAuth } = require("../middlewares/auth");
+const { requireAuth, requireRole } = require("../middlewares/auth");
 const { validateProductInput } = require("../validators/productValidators");
 
 const router = express.Router();
@@ -34,6 +34,7 @@ router.get("/products", async (req, res) => {
 router.post(
   "/products",
   requireAuth,
+  requireRole("admin"),
   async (req, res) => {
     try {
       const errors = validateProductInput(req.body);
