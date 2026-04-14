@@ -18,7 +18,7 @@ describe("ProductsPage", () => {
     render(<ProductsPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/no products yet\. add the first product\./i)).toBeInTheDocument();
+      expect(screen.getByText(/no products match your filters/i)).toBeInTheDocument();
     });
   });
 });

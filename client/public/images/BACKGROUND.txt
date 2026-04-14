@@ -1,0 +1,12 @@
+Optional background image (capybara theme)
+
+The site uses a soft pattern by default:
+  /images/capybara-pattern-bg.svg
+
+To use your own full-page photo (JPG/PNG/WebP):
+1) Add a file here, for example: capybara-shop-bg.jpg
+2) In client/src/index.css, set --shop-bg-image to:
+     url("/images/capybara-shop-bg.jpg")
+   (Keep the gradient overlays so text stays readable.)
+
+Tip: Use a wide image (e.g. 1920px), slightly dark or blurred photos read best behind UI cards.

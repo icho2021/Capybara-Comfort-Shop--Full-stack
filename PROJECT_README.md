@@ -2,8 +2,9 @@
 
 ## Project Overview
 
-Capybara Comfort Shop is a SaaS-style mini e-commerce app built with React (client), Node.js + Express (API), and Prisma (database).
-This implementation currently focuses on the Part 2 foundation: token-cookie authentication, role checks, paginated product listing, product insertion, and core client pages.
+Capybara Comfort Shop is a SaaS-style mini e-commerce app built with React (client), Node.js + Express (API), and Prisma (database). Authentication uses an HTTP-only JWT cookie (`token`) as required for the course.
+
+This repository includes **Part 2 foundation** (auth, roles, paginated products, admin create) and **Part 3 full storefront flows** (search/filter/pagination, product detail, cart, checkout, orders, reviews, admin image upload, external weather API demo).
 
 ## Tech Stack
 
@@ -11,6 +12,13 @@ This implementation currently focuses on the Part 2 foundation: token-cookie aut
 - API: Node.js + Express
 - Database: Prisma + SQLite
 - Auth: JWT token cookie (`httpOnly`)
+- External API (read-only): Frankfurter ECB exchange rates (via API proxy, no API key)
+
+## Deployed application (fill in before submission)
+
+- **Client:** _TBD — add your deployed frontend URL_
+- **API:** _TBD — add your deployed API base URL_
+- **5-minute demo video (YouTube):** _TBD — add your video link (also add to the course signup sheet per README.md)_
 
 ## Local Setup
 
@@ -34,32 +42,32 @@ CLIENT_ORIGIN=http://localhost:5173
 JWT_SECRET=part2_local_secret_change_me
 ```
 
-### 3) Run migration and seed admin user
+If Vite uses another port (for example `5174`), set `CLIENT_ORIGIN` to match so CORS and cookies work.
+
+### 3) Run migrations and seeds
 
 ```bash
 cd api
 npx prisma migrate dev
 npm run seed:admin
+npm run seed:products
 ```
 
 Default admin account:
+
 - Email: `admin@capybara.shop`
 - Password: `Admin1234`
 
-Role note:
-- Admin users can create products from `/products/new`.
-- Regular users can register/login and browse products, but cannot create products (API returns `403` for non-admin role).
-
 ### 4) Start development servers
 
-Terminal A:
+Terminal A (API):
 
 ```bash
 cd api
 npm run dev
 ```
 
-Terminal B:
+Terminal B (client):
 
 ```bash
 cd client
@@ -68,36 +76,57 @@ npm run dev
 
 Open: `http://localhost:5173`
 
-## Part 2 Features Implemented
+### 5) Tests (client)
 
-### API
+```bash
+cd client
+npm test
+```
 
-- Prisma models: `User` (with `role`), `Product`, `Order`
-- Health endpoint: `GET /api/ping`
-- Authentication:
-  - `POST /api/register`
-  - `POST /api/login`
-  - `POST /api/logout`
-- Security middleware:
-  - `requireAuth`
-  - `requireRole(role)`
-- Products:
-  - `GET /api/products?limit=&offset=` (pagination)
-  - `POST /api/products` (authenticated + admin only + server-side validation)
+## Part 2 Features (foundation)
 
-### Client
+- Register / login / logout with token cookie
+- `GET /api/me` for session restore
+- Paginated `GET /api/products`
+- Admin-only `POST /api/products` with server-side validation
+- Client: home, register, login, product list, admin product create, dark mode (CSS variables + `localStorage`)
 
-- Home page (`/`) with dark mode toggle
-- Register page (`/register`) with client-side validation
-- Login page (`/login`)
-- Product list page (`/products`) with loading/error/empty states
-- Product insertion page (`/products/new`) with client-side validation
-- Theme persistence via `localStorage`
+## Part 3 Features (full functionality)
 
-## Quick Manual Test Flow
+### API (high level)
 
-1. Register a normal user at `/register`.
-2. Login with that user and try `/products/new` (should be blocked by role restriction).
-3. Login as admin (`admin@capybara.shop`) and create a product.
-4. Open `/products` and verify list + pagination behavior.
-5. Toggle dark mode and refresh to verify persistence.
+- **Products:** list with `limit`, `offset`, `search`, `category`, `minPrice`, `maxPrice`; get by id; admin create/update; admin soft-delete (`isActive`)
+- **Cart:** get cart; add/update/delete line items (authenticated)
+- **Orders:** checkout from cart (`POST /api/orders` with `shippingAddress`); list orders (user sees own, admin sees all); get order by id; admin update order status
+- **Reviews:** list/create per product; update/delete own review (admin can moderate)
+- **Upload:** `POST /api/upload/image` (admin, multipart) — files served from `/api/uploads/...`
+- **External API (read-only):** `GET /api/currency/external?from=&to=` — proxies to [Frankfurter](https://www.frankfurter.dev/) for reference FX rates (used on **About** page as a cross-border shopping hint)
+
+### Client (pages)
+
+- Home with featured products
+- Products list: **300ms debounced search**, category + price filters, pagination
+- Product detail: image (or placeholder), add to cart, reviews
+- Cart: quantity update, **optimistic remove** with rollback on failure
+- Checkout → order confirmation
+- Orders list and order detail
+- Admin: create product (optional image upload + image URL)
+- About: **reference exchange rates** widget — user picks base currency and target codes (external API)
+
+### Accessibility
+
+- Save Lighthouse accessibility exports (score ≥ 80) for three pages under `accessibility_reports/` (see `accessibility_reports/README.txt`).
+
+## Quick manual test flow (demo script)
+
+1. Browse `/products` — try search (wait for debounce), category, min/max price, pagination.
+2. Open a product — read details; if logged in, submit a review.
+3. Log in as a normal user — add to cart, change quantity, remove a line (optimistic UI).
+4. Checkout with a shipping address — view order in **My Orders**.
+5. Log in as admin — create/edit products; upload an image on create; change order status via API if you test with Postman (UI for status change can be added separately).
+6. Open **About** — choose base currency and targets, then **Fetch rates** (external API).
+
+## Notes
+
+- Uploaded images are stored under `api/uploads/` (create automatically on first upload). For production, use object storage or a CDN; update URLs accordingly.
+- Ensure `CLIENT_ORIGIN` matches your Vite dev server origin so the browser sends the auth cookie to `/api`.

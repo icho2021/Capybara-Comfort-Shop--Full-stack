@@ -3,10 +3,16 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const path = require("path");
 
 const healthRoutes = require("./routes/healthRoutes");
 const authRoutes = require("./routes/authRoutes");
+const cartRoutes = require("./routes/cartRoutes");
+const orderRoutes = require("./routes/orderRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
 const productRoutes = require("./routes/productRoutes");
+const uploadRoutes = require("./routes/uploadRoutes");
+const currencyRoutes = require("./routes/currencyRoutes");
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -21,11 +27,17 @@ app.use(
 );
 app.use(express.json());
 app.use(cookieParser());
+app.use("/api/uploads", express.static(path.join(__dirname, "../uploads")));
 
-// Mount all Part 2 API routes under /api.
+// Mount all API routes under /api (review routes before generic /products/:id if paths overlap).
 app.use("/api", healthRoutes);
+app.use("/api", currencyRoutes);
 app.use("/api", authRoutes);
+app.use("/api", cartRoutes);
+app.use("/api", orderRoutes);
+app.use("/api", reviewRoutes);
 app.use("/api", productRoutes);
+app.use("/api", uploadRoutes);
 
 // Start the HTTP server.
 app.listen(port, () => {
