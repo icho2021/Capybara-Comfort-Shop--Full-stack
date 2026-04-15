@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+const API_BASE = (import.meta.env.VITE_API_BASE || "/api").replace(/\/+$/, "");
+
 const COMMON_BASE = ["USD", "EUR", "GBP", "JPY", "CNY"];
 const CURRENCY_FLAG = {
   USD: "🇺🇸",
@@ -31,7 +33,7 @@ export function ReferenceExchangePanel() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ from, to: to.replace(/\s+/g, "") });
-      const response = await fetch(`/api/currency/external?${params.toString()}`, {
+      const response = await fetch(`${API_BASE}/currency/external?${params.toString()}`, {
         credentials: "include",
       });
       const data = await response.json();

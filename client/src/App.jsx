@@ -3,8 +3,9 @@ import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate, useParams } 
 import { useDebouncedValue } from "./hooks/useDebouncedValue";
 import { ReferenceExchangePanel } from "./components/ReferenceExchangePanel";
 
-const API_BASE = "/api";
+const API_BASE = (import.meta.env.VITE_API_BASE || "/api").replace(/\/+$/, "");
 const GUEST_CART_KEY = "guest_cart_items_v1";
+const CATEGORY_OPTIONS = ["Backpack Charm", "Home Decor", "Blind Box Figurines", "Plush Toy"];
 
 // Unified request helper: always include cookies for token-cookie authentication.
 function request(path, options = {}) {
@@ -14,6 +15,14 @@ function request(path, options = {}) {
     headers: isFormData ? { ...(options.headers || {}) } : { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
   });
+}
+
+function applyBackgroundUrl(backgroundUrl) {
+  if (backgroundUrl) {
+    document.documentElement.style.setProperty("--shop-bg-image", `url("${backgroundUrl}")`);
+  } else {
+    document.documentElement.style.removeProperty("--shop-bg-image");
+  }
 }
 
 function resolveImageUrl(imageUrl) {
@@ -75,6 +84,7 @@ function Header({ user, setUser }) {
           <Link to="/about">Who We Are</Link>
           <Link to="/login">{user ? "Account" : "Login"}</Link>
           {user?.role === "admin" && <Link to="/products/new">Admin: Add Product</Link>}
+          {user?.role === "admin" && <Link to="/admin/settings">Admin: Settings</Link>}
           {!user ? (
             <span className="badge">Guest</span>
           ) : (
@@ -91,7 +101,7 @@ function Header({ user, setUser }) {
   );
 }
 
-// Public landing page with a small featured-products preview.
+// Public landing page with admin-curated popular products (see Admin Settings).
 export function HomePage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -100,9 +110,9 @@ export function HomePage() {
     let cancelled = false;
     async function load() {
       try {
-        const response = await request("/products?limit=4&offset=0");
+        const response = await request("/settings/popular-products");
         const data = await response.json();
-        if (!cancelled && response.ok) setItems(data.items || []);
+        if (!cancelled && response.ok) setItems(data.products || []);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -129,11 +139,11 @@ export function HomePage() {
           Browse products
         </Link>
       </div>
-      <h3 style={{ marginTop: "1.5rem" }}>Featured picks</h3>
+      <h3 style={{ marginTop: "1.5rem" }}>Popular items</h3>
       {loading ? (
-        <p>Loading featured products…</p>
+        <p>Loading popular items…</p>
       ) : items.length === 0 ? (
-        <p>No products yet.</p>
+        <p style={{ color: "var(--text-secondary)" }}>No popular items yet. Admins can choose them under Admin Settings.</p>
       ) : (
         <div className="grid">
           {items.map((item) => (
@@ -415,7 +425,14 @@ export function ProductsPage() {
         </label>
         <label>
           Category
-          <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. plush" />
+          <select value={category} onChange={(e) => setCategory(e.target.value)}>
+            <option value="">All categories</option>
+            {CATEGORY_OPTIONS.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
         </label>
         <div className="row" style={{ alignItems: "flex-end", flexWrap: "wrap", gap: "12px" }}>
           <label style={{ flex: "1 1 120px" }}>
@@ -496,6 +513,34 @@ function ProductDetailPage({ user }) {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
   const [reviewError, setReviewError] = useState("");
+  const [editingReviewId, setEditingReviewId] = useState(null);
+  const [editReviewRating, setEditReviewRating] = useState(5);
+  const [editReviewComment, setEditReviewComment] = useState("");
+
+  function renderStarPicker(value, onChange, namePrefix) {
+    return (
+      <div className="row" style={{ marginTop: 0, justifyContent: "flex-start", gap: "6px" }}>
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button
+            key={`${namePrefix}-${star}`}
+            type="button"
+            className="btn link"
+            aria-label={`${star} star${star > 1 ? "s" : ""}`}
+            onClick={() => onChange(star)}
+            style={{
+              fontSize: "1.2rem",
+              lineHeight: 1,
+              color: star <= value ? "#f59e0b" : "var(--text-secondary)",
+              textDecoration: "none",
+            }}
+          >
+            {star <= value ? "★" : "☆"}
+          </button>
+        ))}
+      </div>
+    );
+  }
+  const [isSavingReviewEdit, setIsSavingReviewEdit] = useState(false);
   const [adminDeleteError, setAdminDeleteError] = useState("");
   const [isDeletingProduct, setIsDeletingProduct] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -615,6 +660,30 @@ function ProductDetailPage({ user }) {
     setReviewComment("");
   }
 
+  async function saveReviewEdit(event) {
+    event.preventDefault();
+    if (!editingReviewId) return;
+    setReviewError("");
+    setIsSavingReviewEdit(true);
+    try {
+      const response = await request(`/reviews/${editingReviewId}`, {
+        method: "PUT",
+        body: JSON.stringify({ rating: editReviewRating, comment: editReviewComment }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setReviewError(data.error || "Could not update review.");
+        return;
+      }
+      setReviews((prev) => prev.map((r) => (r.id === editingReviewId ? data.review : r)));
+      setEditingReviewId(null);
+    } catch {
+      setReviewError("Could not update review.");
+    } finally {
+      setIsSavingReviewEdit(false);
+    }
+  }
+
   async function deleteProductAsAdmin() {
     if (!user || user.role !== "admin") return;
     if (!window.confirm("Delete this product from storefront?")) return;
@@ -703,7 +772,14 @@ function ProductDetailPage({ user }) {
               </label>
               <label>
                 Category
-                <input value={editForm.category} onChange={(e) => setEditForm((v) => ({ ...v, category: e.target.value }))} />
+                <select value={editForm.category} onChange={(e) => setEditForm((v) => ({ ...v, category: e.target.value }))}>
+                  <option value="">Select category</option>
+                  {CATEGORY_OPTIONS.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label>
                 Price
@@ -775,17 +851,11 @@ function ProductDetailPage({ user }) {
       </div>
 
       <h3 style={{ marginTop: "2rem" }}>Reviews</h3>
-      {user && (
+      {user && user.role !== "admin" && (
         <form className="form" onSubmit={submitReview}>
           <label>
-            Rating (1–5)
-            <input
-              type="number"
-              min={1}
-              max={5}
-              value={reviewRating}
-              onChange={(e) => setReviewRating(Number(e.target.value))}
-            />
+            Rating
+            {renderStarPicker(reviewRating, setReviewRating, "new-review-rating")}
           </label>
           <label>
             Comment
@@ -797,6 +867,7 @@ function ProductDetailPage({ user }) {
           </button>
         </form>
       )}
+      {user?.role === "admin" && <p>Admin can view and edit reviews, but cannot publish new reviews.</p>}
       {!user && <p>Log in to leave a review.</p>}
       {reviews.length === 0 ? (
         <p>No reviews yet.</p>
@@ -804,8 +875,45 @@ function ProductDetailPage({ user }) {
         <ul style={{ listStyle: "none", padding: 0 }}>
           {reviews.map((r) => (
             <li key={r.id} className="card" style={{ marginBottom: "8px" }}>
-              <strong>{r.user?.name || "User"}</strong> — {r.rating}/5
-              <p>{r.comment}</p>
+              {editingReviewId === r.id ? (
+                <form className="form" onSubmit={saveReviewEdit}>
+                  <strong>{r.user?.name || "User"}</strong>
+                  <label>
+                    Rating
+                    {renderStarPicker(editReviewRating, setEditReviewRating, `edit-review-${r.id}`)}
+                  </label>
+                  <label>
+                    Comment
+                    <textarea value={editReviewComment} rows={3} onChange={(e) => setEditReviewComment(e.target.value)} />
+                  </label>
+                  <div className="row">
+                    <button className="btn" type="submit" disabled={isSavingReviewEdit}>
+                      {isSavingReviewEdit ? "Saving..." : "Save review"}
+                    </button>
+                    <button className="btn secondary" type="button" onClick={() => setEditingReviewId(null)}>
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  <strong>{r.user?.name || "User"}</strong> — {"★".repeat(r.rating)}
+                  <p>{r.comment}</p>
+                  {user?.role === "admin" && (
+                    <button
+                      className="btn secondary"
+                      type="button"
+                      onClick={() => {
+                        setEditingReviewId(r.id);
+                        setEditReviewRating(r.rating);
+                        setEditReviewComment(r.comment || "");
+                      }}
+                    >
+                      Edit review
+                    </button>
+                  )}
+                </>
+              )}
             </li>
           ))}
         </ul>
@@ -1020,6 +1128,8 @@ function OrdersPage({ user }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [deletingId, setDeletingId] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -1052,21 +1162,109 @@ function OrdersPage({ user }) {
     );
   }
 
+  const pendingOrders = orders.filter((o) => o.status === "pending");
+  const paidColumnOrders = orders.filter((o) => o.status !== "pending");
+
+  async function deletePendingOrder(o) {
+    if (o.status !== "pending") return;
+    if (
+      !window.confirm(
+        `Delete order #${o.id}? This cancels the order and puts items back in stock.`
+      )
+    ) {
+      return;
+    }
+    setDeleteError("");
+    setDeletingId(o.id);
+    try {
+      const response = await request(`/orders/${o.id}`, { method: "DELETE" });
+      const data = await response.json();
+      if (!response.ok) {
+        setDeleteError(data.error || "Could not delete order.");
+        return;
+      }
+      setOrders((prev) => prev.filter((x) => x.id !== o.id));
+    } catch {
+      setDeleteError("Could not delete order.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  function renderOrderCard(o) {
+    const thumbs = (o.items || []).slice(0, 6);
+    return (
+      <li key={o.id} className="card order-summary-card">
+        <div className="order-summary-card-inner">
+          <Link to={`/orders/${o.id}`} className="order-summary-link">
+            <div className="order-summary-head">
+              <span className="order-summary-id">Order #{o.id}</span>
+              <span className={`order-status-badge order-status-${o.status}`}>{o.status}</span>
+            </div>
+            <div className="order-summary-meta">
+              ${Number(o.totalAmount).toFixed(2)} · {new Date(o.createdAt).toLocaleString()}
+            </div>
+            {thumbs.length > 0 && (
+              <div className="order-thumb-row" aria-hidden="true">
+                {thumbs.map((line) => (
+                  <img
+                    key={line.id}
+                    className="order-thumb"
+                    src={resolveImageUrl(line.product?.imageUrl)}
+                    alt={line.product?.title || ""}
+                  />
+                ))}
+                {(o.items || []).length > 6 && (
+                  <span className="order-thumb-more">+{(o.items || []).length - 6}</span>
+                )}
+              </div>
+            )}
+          </Link>
+          {o.status === "pending" && (
+            <button
+              type="button"
+              className="btn secondary order-summary-delete"
+              disabled={deletingId === o.id}
+              onClick={() => deletePendingOrder(o)}
+            >
+              {deletingId === o.id ? "…" : "Delete"}
+            </button>
+          )}
+        </div>
+      </li>
+    );
+  }
+
   return (
     <section className="card">
       <h2>{user.role === "admin" ? "All orders" : "My orders"}</h2>
+      {deleteError && (
+        <p className="error" role="alert">
+          {deleteError}
+        </p>
+      )}
       {orders.length === 0 ? (
         <p>No orders yet.</p>
       ) : (
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          {orders.map((o) => (
-            <li key={o.id} className="card" style={{ marginBottom: "8px" }}>
-              <Link to={`/orders/${o.id}`}>
-                Order #{o.id} — {o.status} — ${Number(o.totalAmount).toFixed(2)} — {new Date(o.createdAt).toLocaleString()}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div className="orders-columns">
+          <div className="orders-column">
+            <h3 className="orders-column-title">Pending</h3>
+            {pendingOrders.length === 0 ? (
+              <p className="orders-column-empty">No pending orders.</p>
+            ) : (
+              <ul className="orders-column-list">{pendingOrders.map(renderOrderCard)}</ul>
+            )}
+          </div>
+          <div className="orders-column">
+            <h3 className="orders-column-title">Paid &amp; shipped</h3>
+            <p className="orders-column-hint">Includes paid, shipped, and cancelled orders.</p>
+            {paidColumnOrders.length === 0 ? (
+              <p className="orders-column-empty">No completed orders yet.</p>
+            ) : (
+              <ul className="orders-column-list">{paidColumnOrders.map(renderOrderCard)}</ul>
+            )}
+          </div>
+        </div>
       )}
     </section>
   );
@@ -1074,11 +1272,14 @@ function OrdersPage({ user }) {
 
 function OrderDetailPage({ user }) {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -1124,6 +1325,32 @@ function OrderDetailPage({ user }) {
     }
   }
 
+  async function deleteOrder() {
+    if (!order || order.status !== "pending") return;
+    if (
+      !window.confirm(
+        `Delete order #${order.id}? Items will return to inventory.`
+      )
+    ) {
+      return;
+    }
+    setDeleteError("");
+    setDeleting(true);
+    try {
+      const response = await request(`/orders/${order.id}`, { method: "DELETE" });
+      const data = await response.json();
+      if (!response.ok) {
+        setDeleteError(data.error || "Could not delete order.");
+        return;
+      }
+      navigate("/orders", { replace: true });
+    } catch {
+      setDeleteError("Could not delete order.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   if (!user) return <Navigate to="/login" replace />;
   if (loading) return <section className="card">Loading order…</section>;
   if (error || !order) {
@@ -1145,9 +1372,12 @@ function OrderDetailPage({ user }) {
       <p>Ship to: {order.shippingAddress}</p>
       <p>Placed: {new Date(order.createdAt).toLocaleString()}</p>
       {order.status === "pending" && (
-        <div className="row" style={{ marginTop: "10px" }}>
-          <button className="btn" type="button" onClick={payNow} disabled={paying}>
+        <div className="row" style={{ marginTop: "10px", flexWrap: "wrap", gap: "10px" }}>
+          <button className="btn" type="button" onClick={payNow} disabled={paying || deleting}>
             {paying ? "Processing..." : "One-click Pay (simulate)"}
+          </button>
+          <button className="btn secondary" type="button" onClick={deleteOrder} disabled={paying || deleting}>
+            {deleting ? "Deleting…" : "Delete order"}
           </button>
           <span style={{ color: "var(--text-secondary)" }}>
             If you leave without paying, order stays pending.
@@ -1155,11 +1385,22 @@ function OrderDetailPage({ user }) {
         </div>
       )}
       {payError && <p className="error">{payError}</p>}
+      {deleteError && <p className="error">{deleteError}</p>}
       <h3>Items</h3>
-      <ul>
+      <ul className="order-items-list">
         {order.items.map((line) => (
-          <li key={line.id}>
-            {line.product.title} × {line.quantity} @ ${Number(line.unitPrice).toFixed(2)}
+          <li key={line.id} className="order-line-item">
+            <img
+              className="order-line-item-img"
+              src={resolveImageUrl(line.product?.imageUrl)}
+              alt={line.product?.title || "Product"}
+            />
+            <div className="order-line-item-body">
+              <div className="order-line-item-title">{line.product.title}</div>
+              <div className="order-line-item-meta">
+                × {line.quantity} @ ${Number(line.unitPrice).toFixed(2)} each
+              </div>
+            </div>
           </li>
         ))}
       </ul>
@@ -1280,7 +1521,14 @@ function ProductCreatePage({ user }) {
         </label>
         <label>
           Category
-          <input name="category" value={form.category} onChange={onChange} />
+          <select name="category" value={form.category} onChange={onChange}>
+            <option value="">Select category</option>
+            {CATEGORY_OPTIONS.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
           {errors.category && <small className="error">{errors.category}</small>}
         </label>
         <label>
@@ -1344,6 +1592,295 @@ function ProductCreatePage({ user }) {
   );
 }
 
+const MAX_POPULAR_PICK = 12;
+
+function AdminSettingsPage({ user }) {
+  const [selected, setSelected] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [current, setCurrent] = useState(null);
+  const [popularIds, setPopularIds] = useState([]);
+  const [catalog, setCatalog] = useState([]);
+  const [popularLoading, setPopularLoading] = useState(true);
+  const [popularSaving, setPopularSaving] = useState(false);
+  const [popularMessage, setPopularMessage] = useState("");
+  const [popularError, setPopularError] = useState("");
+
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== "admin") {
+    return (
+      <section className="card">
+        <h2>Admin Access Required</h2>
+        <p className="error">Only admin users can update storefront settings.</p>
+      </section>
+    );
+  }
+
+  async function refresh() {
+    const response = await request("/settings/background");
+    const data = await response.json();
+    if (response.ok) setCurrent(data.backgroundUrl || null);
+  }
+
+  async function loadPopularAndCatalog() {
+    setPopularLoading(true);
+    setPopularError("");
+    try {
+      const [popRes, catRes] = await Promise.all([
+        request("/settings/popular-products"),
+        request("/products?limit=200&offset=0"),
+      ]);
+      const popData = await popRes.json();
+      const catData = await catRes.json();
+      if (popRes.ok) setPopularIds(popData.productIds || []);
+      else setPopularError(popData.error || "Failed to load popular items.");
+      if (catRes.ok) setCatalog(catData.items || []);
+    } catch {
+      setPopularError("Failed to load catalog or popular items.");
+    } finally {
+      setPopularLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  useEffect(() => {
+    loadPopularAndCatalog();
+  }, []);
+
+  async function uploadBackground() {
+    if (!selected) return;
+    setUploading(true);
+    setMessage("");
+    setError("");
+    try {
+      const body = new FormData();
+      body.append("image", selected);
+      const response = await request("/settings/background", { method: "POST", body });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || "Upload failed.");
+        return;
+      }
+      setCurrent(data.backgroundUrl || null);
+      applyBackgroundUrl(data.backgroundUrl || null);
+      setMessage("Background updated. Refresh any page to see it.");
+    } catch {
+      setError("Upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function resetBackground() {
+    setUploading(true);
+    setMessage("");
+    setError("");
+    try {
+      const response = await request("/settings/background", { method: "DELETE" });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || "Reset failed.");
+        return;
+      }
+      setCurrent(null);
+      applyBackgroundUrl(null);
+      setMessage("Background reset to default.");
+    } catch {
+      setError("Reset failed.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function productById(id) {
+    return catalog.find((x) => x.id === id);
+  }
+
+  function productLabel(id) {
+    const p = productById(id);
+    return p ? `#${id} ${p.title}` : `#${id}`;
+  }
+
+  function movePopular(index, dir) {
+    setPopularIds((prev) => {
+      const next = [...prev];
+      const j = index + dir;
+      if (j < 0 || j >= next.length) return prev;
+      [next[index], next[j]] = [next[j], next[index]];
+      return next;
+    });
+  }
+
+  function removePopular(index) {
+    setPopularIds((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function addPopular(id) {
+    if (!id || popularIds.includes(id) || popularIds.length >= MAX_POPULAR_PICK) return;
+    setPopularIds((prev) => [...prev, id]);
+  }
+
+  async function savePopular() {
+    setPopularSaving(true);
+    setPopularMessage("");
+    setPopularError("");
+    try {
+      const response = await request("/settings/popular-products", {
+        method: "PUT",
+        body: JSON.stringify({ productIds: popularIds }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setPopularError(data.error || "Save failed.");
+        return;
+      }
+      setPopularIds(data.productIds || []);
+      setPopularMessage("Popular items updated. Refresh the home page to preview.");
+    } catch {
+      setPopularError("Save failed.");
+    } finally {
+      setPopularSaving(false);
+    }
+  }
+
+  const addable = catalog.filter((p) => !popularIds.includes(p.id));
+
+  return (
+    <section className="card">
+      <h2>Admin Settings</h2>
+      <h3>Popular items (home page)</h3>
+      <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
+        Choose up to {MAX_POPULAR_PICK} active products and the order they appear under &quot;Popular items&quot; on the welcome page.
+      </p>
+      {popularLoading ? (
+        <p>Loading…</p>
+      ) : (
+        <div className="form" style={{ maxWidth: "640px" }}>
+          <ol className="popular-pick-list">
+            {popularIds.map((id, index) => {
+              const p = productById(id);
+              return (
+                <li key={id} className="popular-pick-row">
+                  <div className="popular-pick-main">
+                    <img
+                      className="popular-pick-thumb"
+                      src={resolveImageUrl(p?.imageUrl)}
+                      alt={p?.title ? `${p.title} thumbnail` : ""}
+                      onError={(e) => {
+                        e.target.src = "/images/placeholder-capybara.svg";
+                      }}
+                    />
+                    <div className="popular-pick-text">
+                      <div className="popular-pick-title">{p ? p.title : productLabel(id)}</div>
+                      <div className="popular-pick-sub">#{id}{p?.category ? ` · ${p.category}` : ""}</div>
+                    </div>
+                  </div>
+                  <div className="row" style={{ flexWrap: "nowrap", gap: "6px" }}>
+                    <button className="btn secondary" type="button" disabled={index === 0} onClick={() => movePopular(index, -1)} title="Move up">
+                      ↑
+                    </button>
+                    <button
+                      className="btn secondary"
+                      type="button"
+                      disabled={index === popularIds.length - 1}
+                      onClick={() => movePopular(index, 1)}
+                      title="Move down"
+                    >
+                      ↓
+                    </button>
+                    <button className="btn secondary" type="button" onClick={() => removePopular(index)}>
+                      Remove
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+          <p className="popular-pick-add-heading">Add a product</p>
+          {addable.length === 0 || popularIds.length >= MAX_POPULAR_PICK ? (
+            <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
+              {popularIds.length >= MAX_POPULAR_PICK
+                ? `Maximum ${MAX_POPULAR_PICK} items. Remove one to add another.`
+                : "All products are already in the list."}
+            </p>
+          ) : (
+            <div className="popular-pick-add-grid">
+              {addable.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className="popular-pick-add-card"
+                  aria-label={`Add ${p.title} to popular items`}
+                  onClick={() => addPopular(p.id)}
+                >
+                  <img
+                    src={resolveImageUrl(p.imageUrl)}
+                    alt=""
+                    aria-hidden="true"
+                    onError={(e) => {
+                      e.target.src = "/images/placeholder-capybara.svg";
+                    }}
+                  />
+                  <span className="popular-pick-add-title">#{p.id} {p.title}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="row">
+            <button className="btn" type="button" disabled={popularSaving} onClick={savePopular}>
+              {popularSaving ? "Saving…" : "Save popular items"}
+            </button>
+          </div>
+          {popularMessage && <p style={{ margin: 0, color: "var(--text-secondary)" }}>{popularMessage}</p>}
+          {popularError && <p className="error">{popularError}</p>}
+        </div>
+      )}
+
+      <h3>Storefront background (tiled)</h3>
+      <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
+        Upload a small image to tile across the whole site. The app will store the image under <code>api/uploads</code> and save its URL in the database.
+      </p>
+      <div className="form">
+        <label>
+          Upload background image
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => setSelected(e.target.files?.[0] || null)}
+          />
+        </label>
+        <div className="row">
+          <button className="btn" type="button" disabled={!selected || uploading} onClick={uploadBackground}>
+            {uploading ? "Uploading..." : "Upload & Apply"}
+          </button>
+          <button className="btn secondary" type="button" disabled={uploading} onClick={resetBackground}>
+            Reset to default
+          </button>
+        </div>
+        {current && (
+          <div>
+            <p style={{ margin: "0 0 6px", color: "var(--text-secondary)" }}>Current background URL: {current}</p>
+            <img
+              src={current}
+              alt="Current background preview"
+              style={{ width: "220px", maxWidth: "100%", borderRadius: "10px", border: "1px solid var(--border)" }}
+              onError={(e) => {
+                e.target.src = "/images/placeholder-capybara.svg";
+              }}
+            />
+          </div>
+        )}
+        {message && <p style={{ margin: 0, color: "var(--text-secondary)" }}>{message}</p>}
+        {error && <p className="error">{error}</p>}
+      </div>
+    </section>
+  );
+}
+
 // Main route map
 function AppRoutes() {
   const [user, setUser] = useState(null);
@@ -1368,6 +1905,24 @@ function AppRoutes() {
       }
     }
     fetchMe();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Load persisted background setting (public endpoint).
+  useEffect(() => {
+    let cancelled = false;
+    async function loadBackground() {
+      try {
+        const response = await request("/settings/background");
+        const data = await response.json();
+        if (!cancelled && response.ok) applyBackgroundUrl(data.backgroundUrl);
+      } catch {
+        // ignore
+      }
+    }
+    loadBackground();
     return () => {
       cancelled = true;
     };
@@ -1398,6 +1953,7 @@ function AppRoutes() {
           <Route path="/checkout" element={<CheckoutPage user={user} />} />
           <Route path="/orders/:id" element={<OrderDetailPage user={user} />} />
           <Route path="/orders" element={<OrdersPage user={user} />} />
+          <Route path="/admin/settings" element={<AdminSettingsPage user={user} />} />
         </Routes>
       </main>
     </div>

@@ -8,9 +8,17 @@ describe("HomePage", () => {
   beforeEach(() => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ items: [], total: 0 }),
+      vi.fn().mockImplementation((url) => {
+        if (String(url).includes("popular-products")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ productIds: [], products: [] }),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ items: [], total: 0 }),
+        });
       })
     );
   });
