@@ -13,15 +13,23 @@ const reviewRoutes = require("./routes/reviewRoutes");
 const productRoutes = require("./routes/productRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const currencyRoutes = require("./routes/currencyRoutes");
+const settingsRoutes = require("./routes/settingsRoutes");
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
-const clientOrigin = process.env.CLIENT_ORIGIN || "http://localhost:5173";
+const allowedOrigins = String(process.env.CLIENT_ORIGIN || "http://localhost:5173")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 
 // Configure middleware needed for JSON APIs and cookie-based authentication.
 app.use(
   cors({
-    origin: clientOrigin,
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   })
 );
@@ -38,6 +46,7 @@ app.use("/api", orderRoutes);
 app.use("/api", reviewRoutes);
 app.use("/api", productRoutes);
 app.use("/api", uploadRoutes);
+app.use("/api", settingsRoutes);
 
 // Start the HTTP server.
 app.listen(port, () => {

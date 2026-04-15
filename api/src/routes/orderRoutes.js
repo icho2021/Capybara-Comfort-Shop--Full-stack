@@ -138,6 +138,53 @@ router.get("/orders/:id", requireAuth, async (req, res) => {
   }
 });
 
+// Delete a pending order only; restores product stock. Owner or admin.
+router.delete("/orders/:id", requireAuth, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1) {
+      return res.status(400).json({ error: "Invalid order id." });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const existing = await prisma.order.findUnique({
+      where: { id },
+      include: { items: true },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: "Order not found." });
+    }
+
+    if (user.role !== "admin" && existing.userId !== req.userId) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    if (existing.status !== "pending") {
+      return res.status(400).json({ error: "Only pending orders can be deleted." });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      for (const line of existing.items) {
+        await tx.product.update({
+          where: { id: line.productId },
+          data: { stock: { increment: line.quantity } },
+        });
+      }
+      await tx.order.delete({ where: { id } });
+    });
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("DELETE /orders/:id", err);
+    return res.status(500).json({ error: "Failed to delete order." });
+  }
+});
+
 // Simulated payment: owner (or admin) can mark a pending order as paid.
 router.post("/orders/:id/pay", requireAuth, async (req, res) => {
   try {

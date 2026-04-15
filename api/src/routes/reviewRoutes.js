@@ -28,6 +28,14 @@ router.get("/products/:productId/reviews", async (req, res) => {
 // Authenticated user creates or replaces review (one per user per product).
 router.post("/products/:productId/reviews", requireAuth, async (req, res) => {
   try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    if (user.role === "admin") {
+      return res.status(403).json({ error: "Admin users cannot publish reviews." });
+    }
+
     const productId = Number(req.params.productId);
     const rating = Number(req.body.rating);
     const comment = typeof req.body.comment === "string" ? req.body.comment.trim() : "";
