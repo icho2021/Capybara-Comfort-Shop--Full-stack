@@ -34,16 +34,26 @@ export function ReferenceExchangePanel() {
     try {
       const params = new URLSearchParams({ from, to: to.replace(/\s+/g, "") });
       const response = await fetch(`${API_BASE}/currency/external?${params.toString()}`, {
-        credentials: "include",
+        credentials: "omit",
       });
-      const data = await response.json();
+      const raw = await response.text();
+      let data;
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch {
+        setError(
+          `Unexpected response (${response.status}). If the URL opened was not JSON, check VITE_API_BASE and redeploy.`
+        );
+        return;
+      }
       if (!response.ok) {
         setError(data.error || "Could not load exchange rates.");
         return;
       }
       setPayload(data);
-    } catch {
-      setError("Network error. Try again.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      setError(`Network error: ${msg}. Try again.`);
     } finally {
       setLoading(false);
     }

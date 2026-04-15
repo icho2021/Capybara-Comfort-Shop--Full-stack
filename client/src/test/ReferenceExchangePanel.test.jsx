@@ -11,15 +11,17 @@ describe("ReferenceExchangePanel", () => {
 
   it("fetches external exchange rates when the user clicks the button", async () => {
     const user = userEvent.setup();
+    const body = JSON.stringify({
+      base: "USD",
+      date: "2026-04-14",
+      rates: { EUR: 0.92, GBP: 0.79 },
+    });
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({
-          base: "USD",
-          date: "2026-04-14",
-          rates: { EUR: 0.92, GBP: 0.79 },
-        }),
+        status: 200,
+        text: async () => body,
       })
     );
 

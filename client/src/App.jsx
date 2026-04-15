@@ -4,8 +4,22 @@ import { useDebouncedValue } from "./hooks/useDebouncedValue";
 import { ReferenceExchangePanel } from "./components/ReferenceExchangePanel";
 
 const API_BASE = (import.meta.env.VITE_API_BASE || "/api").replace(/\/+$/, "");
+/** Production builds need VITE_API_BASE — there is no /api proxy on Vercel like in local Vite dev. */
+const MISSING_VITE_API_BASE = import.meta.env.PROD && !String(import.meta.env.VITE_API_BASE ?? "").trim();
+
 const GUEST_CART_KEY = "guest_cart_items_v1";
 const CATEGORY_OPTIONS = ["Backpack Charm", "Home Decor", "Blind Box Figurines", "Plush Toy"];
+
+// Clearer copy when the API rejects auth (cookie/JWT).
+function formatApiAuthError(message) {
+  if (message === "Unauthorized") {
+    return "Unauthorized: no valid API session cookie (or token expired). Try Log out, then log in again and retry.";
+  }
+  if (message === "Forbidden") {
+    return "Forbidden: this account is not an admin.";
+  }
+  return message;
+}
 
 // Unified request helper: always include cookies for token-cookie authentication.
 function request(path, options = {}) {
@@ -43,6 +57,20 @@ function readGuestCart() {
 
 function writeGuestCart(items) {
   localStorage.setItem(GUEST_CART_KEY, JSON.stringify(items));
+}
+
+function DeployMissingApiBanner() {
+  if (!MISSING_VITE_API_BASE) return null;
+  return (
+    <section className="card" style={{ borderLeft: "4px solid var(--error)" }} role="alert">
+      <p style={{ margin: 0 }}>
+        <strong>Backend URL not configured for production:</strong> add{" "}
+        <code style={{ fontSize: "0.95em" }}>VITE_API_BASE</code> in Vercel (e.g.{" "}
+        <code style={{ fontSize: "0.95em" }}>https://your-api.onrender.com/api</code>
+        ), save, then <strong>Redeploy</strong>. Without it, this site only requests <code>/api</code> on Vercel, not your Render API.
+      </p>
+    </section>
+  );
 }
 
 // Theme switcher that persists user preference and updates the root theme attribute.
@@ -222,7 +250,15 @@ function RegisterPage({ setUser }) {
       setServerError(data.error || "Register failed.");
       return;
     }
-    setUser(data.user);
+    const meRes = await request("/me");
+    const meData = await meRes.json();
+    if (!meRes.ok) {
+      setServerError(
+        "Account created, but your browser did not keep the session cookie. Log out of any old sessions, try another browser, or allow cookies for the API host — admin actions require that cookie."
+      );
+      return;
+    }
+    setUser(meData.user);
     navigate("/products");
   }
 
@@ -273,7 +309,15 @@ function LoginPage({ setUser }) {
       setError(data.error || "Login failed.");
       return;
     }
-    setUser(data.user);
+    const meRes = await request("/me");
+    const meData = await meRes.json();
+    if (!meRes.ok) {
+      setError(
+        "Password accepted, but your browser did not save the session cookie. Admin upload and other protected APIs need it. Try Safari/Firefox, a private window, or reduce third‑party cookie blocking for this site."
+      );
+      return;
+    }
+    setUser(meData.user);
     navigate("/products");
   }
 
@@ -1662,7 +1706,7 @@ function AdminSettingsPage({ user }) {
       const response = await request("/settings/background", { method: "POST", body });
       const data = await response.json();
       if (!response.ok) {
-        setError(data.error || "Upload failed.");
+        setError(formatApiAuthError(data.error || "Upload failed."));
         return;
       }
       setCurrent(data.backgroundUrl || null);
@@ -1683,7 +1727,7 @@ function AdminSettingsPage({ user }) {
       const response = await request("/settings/background", { method: "DELETE" });
       const data = await response.json();
       if (!response.ok) {
-        setError(data.error || "Reset failed.");
+        setError(formatApiAuthError(data.error || "Reset failed."));
         return;
       }
       setCurrent(null);
@@ -1735,7 +1779,7 @@ function AdminSettingsPage({ user }) {
       });
       const data = await response.json();
       if (!response.ok) {
-        setPopularError(data.error || "Save failed.");
+        setPopularError(formatApiAuthError(data.error || "Save failed."));
         return;
       }
       setPopularIds(data.productIds || []);
@@ -1931,6 +1975,7 @@ function AppRoutes() {
   if (isAuthLoading) {
     return (
       <div className="layout">
+        <DeployMissingApiBanner />
         <section className="card">Loading session...</section>
       </div>
     );
@@ -1938,6 +1983,7 @@ function AppRoutes() {
 
   return (
     <div className="layout">
+      <DeployMissingApiBanner />
       <Header user={user} setUser={setUser} />
       <main>
         <Routes>
