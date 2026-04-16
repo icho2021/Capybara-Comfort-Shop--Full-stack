@@ -1,9 +1,0 @@
-Put your real product photos here (JPG / PNG / WebP / SVG).
-
-Then in api/prisma/seed-products.samples.js set imageUrl like:
-
-  "/images/my-product-photo.jpg"
-
-Rebuild / redeploy the client so Vercel serves these files.
-
-Do not rely on Google Drive "share" links for <img> — use files under this folder or another stable https URL.

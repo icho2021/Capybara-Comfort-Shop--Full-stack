@@ -31,6 +31,21 @@ function request(path, options = {}) {
   });
 }
 
+// Parse API responses defensively so empty/non-JSON payloads don't crash UI flows.
+async function readJsonSafe(response) {
+  if (typeof response?.text !== "function") {
+    if (typeof response?.json === "function") return await response.json();
+    return {};
+  }
+  const raw = await response.text();
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new Error(`API returned non-JSON response (${response.status}).`);
+  }
+}
+
 function applyBackgroundUrl(backgroundUrl) {
   if (backgroundUrl) {
     document.documentElement.style.setProperty("--shop-bg-image", `url("${backgroundUrl}")`);
@@ -139,7 +154,7 @@ export function HomePage() {
     async function load() {
       try {
         const response = await request("/settings/popular-products");
-        const data = await response.json();
+        const data = await readJsonSafe(response);
         if (!cancelled && response.ok) setItems(data.products || []);
       } finally {
         if (!cancelled) setLoading(false);
@@ -420,7 +435,7 @@ export function ProductsPage() {
           maxPrice,
         });
         const response = await request(`/products?${qs}`);
-        const data = await response.json();
+        const data = await readJsonSafe(response);
         if (!response.ok) throw new Error(data.error || "Failed to fetch products.");
         if (!cancelled) {
           setItems(data.items || []);
@@ -1940,7 +1955,7 @@ function AppRoutes() {
           if (!cancelled) setUser(null);
           return;
         }
-        const data = await response.json();
+      const data = await readJsonSafe(response);
         if (!cancelled) setUser(data.user || null);
       } catch {
         if (!cancelled) setUser(null);
@@ -1960,7 +1975,7 @@ function AppRoutes() {
     async function loadBackground() {
       try {
         const response = await request("/settings/background");
-        const data = await response.json();
+        const data = await readJsonSafe(response);
         if (!cancelled && response.ok) applyBackgroundUrl(data.backgroundUrl);
       } catch {
         // ignore

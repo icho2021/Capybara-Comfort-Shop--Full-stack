@@ -1,5 +1,4 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ReferenceExchangePanel } from "../components/ReferenceExchangePanel";
@@ -9,8 +8,7 @@ describe("ReferenceExchangePanel", () => {
     vi.restoreAllMocks();
   });
 
-  it("fetches external exchange rates when the user clicks the button", async () => {
-    const user = userEvent.setup();
+  it("auto-loads external exchange rates on mount", async () => {
     const body = JSON.stringify({
       base: "USD",
       date: "2026-04-14",
@@ -26,7 +24,6 @@ describe("ReferenceExchangePanel", () => {
     );
 
     render(<ReferenceExchangePanel />);
-    await user.click(screen.getByRole("button", { name: /fetch rates/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/1 ≈ 0\.9200/i)).toBeInTheDocument();

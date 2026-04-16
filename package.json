@@ -1,0 +1,11 @@
+{
+  "name": "capybara-comfort-shop",
+  "private": true,
+  "description": "Root scripts only — dependencies live in client/ and api/",
+  "scripts": {
+    "dev": "npm run dev --prefix client",
+    "dev:api": "npm run dev --prefix api",
+    "build": "npm run build --prefix client",
+    "test": "npm test --prefix client"
+  }
+}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const API_BASE = (import.meta.env.VITE_API_BASE || "/api").replace(/\/+$/, "");
 
@@ -18,6 +18,29 @@ const CURRENCY_FLAG = {
 
 function flagForCurrency(code) {
   return CURRENCY_FLAG[code] || "🏳️";
+}
+
+function normalizeTargets(input) {
+  return input
+    .split(",")
+    .map((s) => s.trim().toUpperCase())
+    .filter((s) => /^[A-Z]{3}$/.test(s))
+    .slice(0, 8);
+}
+
+async function fetchRatesFromFrankfurter(from, toRaw) {
+  const targets = normalizeTargets(toRaw);
+  if (!/^[A-Z]{3}$/.test(from) || targets.length === 0) return null;
+  const url = `https://api.frankfurter.app/latest?from=${encodeURIComponent(from)}&to=${encodeURIComponent(targets.join(","))}`;
+  const response = await fetch(url);
+  if (!response.ok) return null;
+  const data = await response.json();
+  if (!data?.rates || typeof data.rates !== "object") return null;
+  return {
+    base: String(data.base || from),
+    date: String(data.date || ""),
+    rates: data.rates,
+  };
 }
 
 // External API demo: ECB reference FX via Frankfurter (read-only, no API key). Useful for cross-border price hints.
@@ -47,17 +70,34 @@ export function ReferenceExchangePanel() {
         return;
       }
       if (!response.ok) {
+        const direct = await fetchRatesFromFrankfurter(from, to.replace(/\s+/g, ""));
+        if (direct) {
+          setPayload(direct);
+          setError("");
+          return;
+        }
         setError(data.error || "Could not load exchange rates.");
         return;
       }
       setPayload(data);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      setError(`Network error: ${msg}. Try again.`);
+      const direct = await fetchRatesFromFrankfurter(from, to.replace(/\s+/g, ""));
+      if (direct) {
+        setPayload(direct);
+        setError("");
+      } else {
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        setError(`Network error: ${msg}. Try again.`);
+      }
     } finally {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    loadRates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const entries = payload?.rates ? Object.entries(payload.rates) : [];
 
