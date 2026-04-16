@@ -1639,12 +1639,12 @@ function ProductCreatePage({ user }) {
             {uploadingImage ? "Uploading..." : "Upload selected image"}
           </button>
           {selectedImageFile && <span>Selected file: {selectedImageFile.name}</span>}
-          {form.imageUrl && <span>Current image: {form.imageUrl}</span>}
+          {form.imageUrl && <span>Current image: {resolveApiAssetUrl(form.imageUrl)}</span>}
         </div>
         {uploadMessage && <p style={{ color: "var(--text-secondary)", margin: 0 }}>{uploadMessage}</p>}
         {form.imageUrl && (
           <img
-            src={form.imageUrl}
+            src={resolveImageUrl(form.imageUrl)}
             alt="Uploaded product preview"
             style={{ width: "180px", maxWidth: "100%", borderRadius: "10px", border: "1px solid var(--border)" }}
             onError={(e) => {
@@ -1932,9 +1932,11 @@ function AdminSettingsPage({ user }) {
         </div>
         {current && (
           <div>
-            <p style={{ margin: "0 0 6px", color: "var(--text-secondary)" }}>Current background URL: {current}</p>
+            <p style={{ margin: "0 0 6px", color: "var(--text-secondary)" }}>
+              Current background URL: {resolveApiAssetUrl(current)}
+            </p>
             <img
-              src={current}
+              src={resolveImageUrl(current)}
               alt="Current background preview"
               style={{ width: "220px", maxWidth: "100%", borderRadius: "10px", border: "1px solid var(--border)" }}
               onError={(e) => {
