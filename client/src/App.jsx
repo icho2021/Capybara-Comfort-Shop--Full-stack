@@ -4,6 +4,7 @@ import { useDebouncedValue } from "./hooks/useDebouncedValue";
 import { ReferenceExchangePanel } from "./components/ReferenceExchangePanel";
 
 const API_BASE = (import.meta.env.VITE_API_BASE || "/api").replace(/\/+$/, "");
+const API_ORIGIN = API_BASE === "/api" ? "" : API_BASE.replace(/\/api$/, "");
 /** Production builds need VITE_API_BASE — there is no /api proxy on Vercel like in local Vite dev. */
 const MISSING_VITE_API_BASE = import.meta.env.PROD && !String(import.meta.env.VITE_API_BASE ?? "").trim();
 
@@ -48,15 +49,24 @@ async function readJsonSafe(response) {
 
 function applyBackgroundUrl(backgroundUrl) {
   if (backgroundUrl) {
-    document.documentElement.style.setProperty("--shop-bg-image", `url("${backgroundUrl}")`);
+    const resolved = resolveApiAssetUrl(backgroundUrl);
+    document.documentElement.style.setProperty("--shop-bg-image", `url("${resolved}")`);
   } else {
     document.documentElement.style.removeProperty("--shop-bg-image");
   }
 }
 
+function resolveApiAssetUrl(url) {
+  if (!url || typeof url !== "string") return url;
+  if (url.startsWith("/api/") && API_ORIGIN) {
+    return `${API_ORIGIN}${url}`;
+  }
+  return url;
+}
+
 function resolveImageUrl(imageUrl) {
   if (!imageUrl || !imageUrl.trim()) return "/images/placeholder-capybara.svg";
-  return imageUrl;
+  return resolveApiAssetUrl(imageUrl);
 }
 
 function readGuestCart() {
