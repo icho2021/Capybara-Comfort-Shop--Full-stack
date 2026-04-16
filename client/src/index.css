@@ -8,8 +8,8 @@
   --accent-hover: #4338ca;
   --error: #dc2626;
   --shadow-soft: 0 10px 30px rgba(79, 70, 229, 0.12);
-  /* Full-page background: replace with url("/images/your-photo.jpg") for a capybara photo */
-  --shop-bg-image: url("/images/capybara-pattern-bg.svg");
+  /* Keep in sync with api/prisma/storefront-background.path.js */
+  --shop-bg-image: url("/images/background.png");
 }
 
 [data-theme="dark"] {
@@ -22,7 +22,8 @@
   --accent-hover: #6366f1;
   --error: #f87171;
   --shadow-soft: 0 10px 30px rgba(2, 6, 23, 0.45);
-  --shop-bg-image: url("/images/capybara-pattern-bg.svg");
+  /* Keep in sync with api/prisma/storefront-background.path.js */
+  --shop-bg-image: url("/images/background.png");
 }
 
 * {

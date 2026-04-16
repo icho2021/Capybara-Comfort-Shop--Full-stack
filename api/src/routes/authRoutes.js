@@ -71,10 +71,12 @@ router.post("/login", async (req, res) => {
 
 // Clear auth cookie to end the current session.
 router.post("/logout", (_req, res) => {
+  const opts = getCookieOptions();
   res.clearCookie("token", {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: false,
+    httpOnly: opts.httpOnly,
+    sameSite: opts.sameSite,
+    secure: opts.secure,
+    path: opts.path,
   });
   return res.json({ ok: true });
 });

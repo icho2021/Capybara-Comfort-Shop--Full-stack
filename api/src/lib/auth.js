@@ -8,11 +8,16 @@ function createToken(user) {
 }
 
 // Shared cookie settings for login/register responses.
+// Cross-origin deploy (e.g. Vercel + Render): browsers only send cookies on credentialed
+// fetch to another site when SameSite=None and Secure=true.
 function getCookieOptions() {
+  // Render may not always set NODE_ENV=production; RENDER=true is set on Render-hosted services.
+  const crossSite = process.env.NODE_ENV === "production" || process.env.RENDER === "true";
   return {
     httpOnly: true,
-    sameSite: "lax",
-    secure: false,
+    sameSite: crossSite ? "none" : "lax",
+    secure: crossSite,
+    path: "/",
     maxAge: 7 * 24 * 60 * 60 * 1000,
   };
 }

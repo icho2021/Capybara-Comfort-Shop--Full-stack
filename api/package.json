@@ -10,7 +10,9 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "seed:admin": "node prisma/seed-admin.js",
-    "seed:products": "node prisma/seed-products.js"
+    "seed:products": "node prisma/seed-products.js",
+    "seed:storefront": "node prisma/seed-storefront.js",
+    "seed:demo": "node prisma/seed-admin.js && node prisma/seed-products.js && node prisma/seed-storefront.js"
   },
   "keywords": [],
   "author": "",

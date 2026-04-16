@@ -4,7 +4,7 @@
 
 Capybara Comfort Shop is a SaaS-style mini e-commerce app built with React (client), Node.js + Express (API), and Prisma (database). Authentication uses an HTTP-only JWT cookie (`token`) as required for the course.
 
-This repository includes **Part 2 foundation** (auth, roles, paginated products, admin create) and **Part 3 full storefront flows** (search/filter/pagination, product detail, cart, checkout, orders, reviews, admin image upload, external weather API demo).
+This repository includes **Part 2 foundation** (auth, roles, paginated products, admin create) and **Part 3 full storefront flows** (search/filter/pagination, product detail, cart, checkout, orders, reviews, admin image upload, external currency API demo).
 
 ## Tech Stack
 
@@ -12,7 +12,7 @@ This repository includes **Part 2 foundation** (auth, roles, paginated products,
 - API: Node.js + Express
 - Database: Prisma + SQLite
 - Auth: JWT token cookie (`httpOnly`)
-- External API (read-only): Frankfurter ECB exchange rates (via API proxy, no API key)
+- External API (read-only): public currency exchange rates via API proxy (`/api/currency/external`) with upstream fallback support
 
 ## Deployed application (fill in before submission)
 
@@ -104,18 +104,36 @@ npm test
 
 ### Client (pages)
 
-- Home with featured products
+- Home with admin-curated **Popular items**
 - Products list: **300ms debounced search**, category + price filters, pagination
 - Product detail: image (or placeholder), add to cart, reviews
 - Cart: quantity update, **optimistic remove** with rollback on failure
 - Checkout → order confirmation
-- Orders list and order detail
-- Admin: create product (optional image upload + image URL)
+- Orders list and order detail (pending vs paid/shipped columns, item images, pending-order delete)
+- Admin: create/edit/delete product (optional image upload + image URL)
+- Admin settings: upload/reset storefront background, choose/reorder home-page popular items
 - About: **reference exchange rates** widget — user picks base currency and target codes (external API)
 
 ### Accessibility
 
-- Save Lighthouse accessibility exports (score ≥ 80) for three pages under `accessibility_reports/` (see `accessibility_reports/README.txt`).
+- Lighthouse accessibility reports are saved under `accessibility_reports/`:
+  - `lighthouse-home.html`
+  - `lighthouse-products.html`
+  - `lighthouse-about.html`
+- Target requirement: score ≥ 80 for each page.
+
+## Submission checklist (non-video items)
+
+- [x] Part 1 file present: `PART1.md`
+- [x] API + client + Prisma structure complete (`api/`, `client/`)
+- [x] Role-based auth with cookie token
+- [x] Search/filter/pagination + 300ms debounce
+- [x] Optimistic update implemented (cart remove rollback)
+- [x] External read-only API integrated (currency rates)
+- [x] Unit tests (>=3 components)
+- [x] Accessibility reports generated in `accessibility_reports/`
+- [ ] Deployment URLs filled (client + api + db)
+- [ ] YouTube demo link filled
 
 ## Quick manual test flow (demo script)
 

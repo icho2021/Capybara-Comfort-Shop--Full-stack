@@ -1,0 +1,7 @@
+Bundled demo images for deployment (Vercel static hosting)
+
+These files are served from the same origin as the SPA (/images/...).
+Product seed data and optional storefront background use paths under /images/
+so the site looks correct without relying on Render api/uploads/ persistence.
+
+Add more images here and reference them in the database or admin as /images/your-file.ext

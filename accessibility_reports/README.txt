@@ -11,3 +11,8 @@ Name files clearly, for example:
 - lighthouse-home.png
 - lighthouse-products.png
 - lighthouse-about.png
+
+Current generated reports in this repository:
+- lighthouse-home.html
+- lighthouse-products.html
+- lighthouse-about.html
