@@ -6,7 +6,7 @@ A full-stack e-commerce demo built with React, Node.js/Express, and Prisma.
 
 - Client: https://capybara-comfort-shop.vercel.app
 - API: https://capybara-comfort-shop-web.onrender.com/api
-- Demo video (YouTube): https://www.youtube.com/watch?v=y4JImyLnwrE
+- Demo video (YouTube): https://www.youtube.com/watch?v=sDeguNihffQ
 
 ## Features
 
