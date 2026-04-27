@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-// Debounce a value for search inputs (Part 3: 300ms debounce requirement).
+// Debounce a value for search inputs.
 export function useDebouncedValue(value, delayMs = 300) {
   const [debounced, setDebounced] = useState(value);
 

@@ -25,7 +25,7 @@ model User {
   reviews Review[]
 }
 
-// One cart per user (Part 1 design).
+// One cart per user.
 model Cart {
   id        Int        @id @default(autoincrement())
   userId    Int        @unique
@@ -91,7 +91,7 @@ model OrderItem {
   product Product @relation(fields: [productId], references: [id])
 }
 
-// One review per user per product (simplifies Part 3 UX).
+// One review per user per product.
 model Review {
   id        Int      @id @default(autoincrement())
   userId    Int

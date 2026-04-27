@@ -1,6 +1,6 @@
 const { prisma } = require("./prisma");
 
-// Ensure each user has exactly one cart row (Part 1 design).
+// Ensure each user has exactly one cart row.
 async function getOrCreateCart(userId) {
   let cart = await prisma.cart.findUnique({ where: { userId } });
   if (!cart) {
